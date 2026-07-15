@@ -39,20 +39,17 @@
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        /* ===================================================
-           LAYOUT BASE (FLEXBOX COLUMN) - CORREÇÃO DESKTOP
-           =================================================== */
         body {
             background: var(--bg); color: var(--text); font-family: var(--font-ui);
             margin: 0; padding: 0; width: 100vw; height: 100dvh; overflow: hidden;
-            display: flex; flex-direction: column; /* Força empilhamento rígido */
+            display: flex; flex-direction: column;
         }
 
         /* ===================================================
            CABEÇALHO (TOPO)
            =================================================== */
         header {
-            flex: 0 0 auto; /* Não cresce, ocupa o espaço necessário */
+            flex: 0 0 auto;
             padding: 12px 20px; display: flex; flex-direction: column; align-items: center;
             border-bottom: 1px solid var(--border); z-index: 1001; background: var(--bg);
         }
@@ -80,14 +77,14 @@
            TELA CENTRAL (IMAGENS)
            =================================================== */
         main {
-            flex: 1 1 0; /* Ocupa todo o espaço restante dinamicamente */
+            flex: 1 1 0;
             position: relative; display: flex; align-items: center; justify-content: center;
             width: 100%; overflow: hidden; background: #000;
         }
 
         #catalog-container {
             position: absolute; width: 100%; height: 100%; display: none;
-            padding: 15px; /* Espaço de respiro para a imagem */
+            padding: 15px;
         }
 
         .card { 
@@ -117,13 +114,12 @@
            RODAPÉ (CONTROLES E CATEGORIAS)
            =================================================== */
         footer {
-            flex: 0 0 auto; /* Tamanho fixo no fundo */
+            flex: 0 0 auto;
             background: var(--surface); border-top: 1px solid var(--border);
             display: none; flex-direction: column; padding: 15px 20px max(15px, env(safe-area-inset-bottom));
             z-index: 100;
         }
 
-        /* Linha superior do rodapé: Ações e Abas */
         .footer-header {
             display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px;
         }
@@ -139,9 +135,9 @@
 
         .category-tabs {
             display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
-            scrollbar-width: none; /* Firefox */
+            scrollbar-width: none;
         }
-        .category-tabs::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+        .category-tabs::-webkit-scrollbar { display: none; }
         
         .cat-tab {
             background: transparent; color: var(--text-muted); border: none; font-family: var(--font-ui);
@@ -150,10 +146,8 @@
         }
         .cat-tab.active { color: #fff; border-bottom-color: #fff; }
 
-        /* Grade de Subcategorias */
         #subcategory-grid {
             display: grid; gap: 10px; 
-            /* Se adapta ao espaço: no mobile 2 colunas, no desktop até 5 */
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         }
 
@@ -161,7 +155,7 @@
             background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
             padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
             cursor: pointer; transition: transform 0.1s, border-color 0.2s, background 0.2s;
-            text-align: center; gap: 4px;
+            text-align: center; gap: 4px; position: relative;
         }
         .action-btn:active { transform: scale(0.96); }
         
@@ -170,7 +164,7 @@
         .action-btn .btn-shortcut { position: absolute; top: 6px; right: 8px; font-family: var(--font-mono); font-size: 0.6rem; opacity: 0.4; }
 
         /* ===================================================
-           TELA DE LOGIN CENTRALIZADA
+           TELA DE LOGIN CENTRALIZADA E TOASTS
            =================================================== */
         #login-screen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
@@ -185,10 +179,10 @@
         }
         #auth_button:hover { border-color: #fff; background: rgba(255,255,255,0.05); }
 
-        /* Toasts */
         #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast { background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.3s; font-size: 0.9rem; text-align: center; }
         .toast.show { opacity: 1; }
+        .toast.danger { background: var(--reject); color: #fff; }
     </style>
 </head>
 <body>
@@ -227,12 +221,12 @@
 
     <footer id="bottom-controls">
         <div class="footer-header">
-            <button class="utility-btn" id="btn-undo" onclick="undoLastAction()" style="visibility: hidden;">↩ Desfazer</button>
+            <button class="utility-btn" id="btn-undo" onclick="undoLastAction()" style="visibility: hidden;">↩ Desfazer (Z)</button>
             
             <div class="category-tabs" id="category-tabs-container">
                 </div>
 
-            <button class="utility-btn" id="btn-reject" onclick="categorizePhoto(FOLDERS.reject)">🏴 Excluir</button>
+            <button class="utility-btn" id="btn-reject" onclick="categorizePhoto(FOLDERS.reject)">🏴 Excluir (X)</button>
         </div>
 
         <div id="subcategory-grid">
@@ -244,13 +238,13 @@
         // ESTRUTURAS DE PASTAS E CATEGORIAS (O MOTOR)
         // =======================================================
         
-        // Pasta de Origem e Pasta de Exclusão (Reject)
+        // Pasta de Origem (Curadoria) e Pasta de Exclusão (Reject)
         const FOLDERS = {
-            'source': '1l5c1yWkNJWI3NIKp_6Fnxs56nzc44P6F', // Substitua pelo ID real da sua pasta de entrada
-            'reject': '1UL8zEJGWWH2A1NEt-pUhRDQ9sTj9KI6w'  // ID da pasta Excluir
+            'source': '1l5c1yWkNJWI3NIKp_6Fnxs56nzc44P6F', // ID Oficial da Curadoria
+            'reject': '1UL8zEJGWWH2A1NEt-pUhRDQ9sTj9KI6w'  // ID Oficial da Excluir
         };
 
-        // Dicionário de Categorias e Subcategorias (Você pode expandir até os 24 botões aqui)
+        // Dicionário de Categorias e Subcategorias
         const CATEGORY_MAP = {
             'PRINCIPAL': [
                 { id: 'boudoir', name: 'BOUDOIR', desc: 'intimidade casual', folder: '1FYx0KBZRLDbhjb4hEbCP2UqnMbT_bKEf', color: '#c2994a', shortcut: '1' },
@@ -258,11 +252,6 @@
                 { id: 'sensual', name: 'SENSUAL', desc: 'sugestão insinuante', folder: '1Axs1vLJLYyPVwFtm819uH_xlFk2OW1AM', color: '#d16b8a', shortcut: '3' },
                 { id: 'erotic', name: 'EROTIC', desc: 'sexualidade intensa', folder: '19nJoQ8fMergClHc1VEF00e3POBVfwuub', color: '#8a4baf', shortcut: '4' },
                 { id: 'portrait', name: 'PORTRAIT', desc: 'expressão individual', folder: '1R1mrswoVIBK9w8q0Bshm81PDfgaGWxJd', color: '#3d7ec4', shortcut: '5' }
-            ],
-            // Exemplo de como adicionar a segunda categoria no futuro:
-            'SECUNDÁRIA': [
-                { id: 'exemplo1', name: 'EXEMPLO', desc: 'descrição curta', folder: 'COLOQUE_O_ID_AQUI', color: '#555555', shortcut: '6' },
-                { id: 'exemplo2', name: 'OUTRO', desc: 'descrição curta', folder: 'COLOQUE_O_ID_AQUI', color: '#555555', shortcut: '7' }
             ]
         };
 
@@ -277,19 +266,17 @@
             
             tabsContainer.innerHTML = '';
             
-            // Criar as Abas
             Object.keys(CATEGORY_MAP).forEach(catName => {
                 const btn = document.createElement('button');
                 btn.className = `cat-tab ${catName === activeCategory ? 'active' : ''}`;
                 btn.innerText = catName;
                 btn.onclick = () => {
                     activeCategory = catName;
-                    buildCategoryUI(); // Reconstrói ao trocar de aba
+                    buildCategoryUI(); 
                 };
                 tabsContainer.appendChild(btn);
             });
 
-            // Criar os botões da aba ativa
             gridContainer.innerHTML = '';
             const activeButtons = CATEGORY_MAP[activeCategory];
             
@@ -297,9 +284,10 @@
                 const btn = document.createElement('div');
                 btn.className = 'action-btn';
                 btn.style.borderColor = `rgba(${hexToRgb(sub.color)}, 0.3)`;
+                
+                // Dispara o motor de movimentação ao clicar
                 btn.onclick = () => categorizePhoto(sub.folder);
                 
-                // Efeito Hover customizado via JS para manter o CSS limpo
                 btn.onmouseenter = () => { btn.style.background = `rgba(${hexToRgb(sub.color)}, 0.1)`; btn.style.borderColor = sub.color; };
                 btn.onmouseleave = () => { btn.style.background = 'var(--surface-2)'; btn.style.borderColor = `rgba(${hexToRgb(sub.color)}, 0.3)`; };
 
@@ -312,7 +300,6 @@
             });
         }
 
-        // Função auxiliar para cor RGB a partir de HEX
         function hexToRgb(hex) {
             let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '255,255,255';
@@ -356,7 +343,6 @@
             tokenClient.callback = async (resp) => {
                 if (resp.error) return;
                 
-                // Oculta tela de login, revela a interface principal
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('top-controls').style.display = 'flex';
                 document.getElementById('catalog-container').style.display = 'block';
@@ -369,10 +355,10 @@
             tokenClient.requestAccessToken(); 
         }
 
-        function showToast(msg) {
+        function showToast(msg, type='info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = 'toast';
+            toast.className = `toast ${type}`;
             toast.innerText = msg;
             container.appendChild(toast);
             requestAnimationFrame(() => toast.classList.add('show'));
@@ -436,34 +422,22 @@
             else if (nextPageToken) { listPhotos(); }
         }
 
-        // Swipe nativo
-        let touchstartX = 0, touchendX = 0;
-        document.getElementById('catalog-container').addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
-        document.getElementById('catalog-container').addEventListener('touchend', e => {
-            touchendX = e.changedTouches[0].screenX;
-            if (touchendX < touchstartX - 50) nextPhoto(); 
-            if (touchendX > touchstartX + 50) prevPhoto();
-        }, {passive: true});
-
-        // Atalhos de teclado (Mapeando os atalhos configurados no CATEGORY_MAP)
+        // Atalhos de Teclado
         document.addEventListener('keydown', (event) => {
             if (event.repeat) return; 
             
             if (event.key === 'ArrowLeft') { prevPhoto(); return; }
             if (event.key === 'ArrowRight') { nextPhoto(); return; }
-            if (event.key.toLowerCase() === 'z') { undoLastAction(); return; } // Z para Desfazer
-            if (event.key.toLowerCase() === 'x') { categorizePhoto(FOLDERS.reject); return; } // X para Excluir
+            if (event.key.toLowerCase() === 'z') { undoLastAction(); return; }
+            if (event.key.toLowerCase() === 'x') { categorizePhoto(FOLDERS.reject); return; }
             
-            // Busca se a tecla pressionada corresponde ao atalho de alguma subcategoria da aba ATUAL
             const activeButtons = CATEGORY_MAP[activeCategory];
             const matchedSub = activeButtons.find(sub => sub.shortcut === event.key);
-            if (matchedSub) {
-                categorizePhoto(matchedSub.folder);
-            }
+            if (matchedSub) categorizePhoto(matchedSub.folder);
         });
 
         // =======================================================
-        // FETCH DO GOOGLE DRIVE
+        // FETCH DA CURADORIA (GOOGLE DRIVE)
         // =======================================================
         async function fetchTotalCount() {
             let count = 0, pageToken = null;
@@ -528,29 +502,30 @@
         }
 
         // =======================================================
-        // AÇÃO: MOVER ARQUIVO PARA UMA PASTA
+        // AÇÃO: MOTOR DE MOVIMENTAÇÃO DE FOTOS (API REAL)
         // =======================================================
         function categorizePhoto(targetFolderId) {
             const activeCard = getActiveCard();
             if (!activeCard) return;
             
             const fileId = activeCard.dataset.fileId;
+            const originFolderId = FOLDERS.source;
             
-            // Animação visual de saída
+            // 1. Optimistic UI: Tira o cartão da frente instantaneamente
             activeCard.classList.add('animating'); 
             activeCard.style.transform = targetFolderId === FOLDERS.reject ? `translate(-500px, 100px) rotate(-30deg)` : `translate(500px, -100px) scale(0.8)`;
             activeCard.style.opacity = '0';
             activeCard.style.pointerEvents = 'none';
             
-            // Guardar no histórico para Undo
+            // 2. Registra histórico para o Desfazer
             const imgEl = activeCard.querySelector('img');
             actionHistory.push({ 
-                fileId: fileId, destination: targetFolderId, origin: FOLDERS.source, 
+                fileId: fileId, destination: targetFolderId, origin: originFolderId, 
                 imgUrl: imgEl ? imgEl.src : '', fileName: activeCard.dataset.fileName, mimeType: activeCard.dataset.mimeType 
             });
             updateUndoButtonState();
 
-            // Atualiza contadores e UI
+            // 3. Atualiza UI de contagem
             updateCardsVisibility(); 
             if (totalPhotosInFolder > 0) totalPhotosInFolder--; 
             document.getElementById('photo-count').innerText = totalPhotosInFolder;
@@ -561,10 +536,20 @@
                 if (getVisibleCards().length === 0 && !nextPageToken) document.getElementById('end-screen').style.display = 'flex';
             }, 200);
 
-            // Requisição da API Real
-            gapi.client.drive.files.update({
-                fileId: fileId, addParents: targetFolderId, removeParents: FOLDERS.source, fields: 'id' 
-            }).catch(e => console.error("Erro ao mover:", e));
+            // 4. Execução da Movimentação na Nuvem
+            if (targetFolderId !== originFolderId) {
+                gapi.client.drive.files.update({
+                    fileId: fileId, 
+                    addParents: targetFolderId, 
+                    removeParents: originFolderId, 
+                    fields: 'id' 
+                }).then(function(response) {
+                    console.log("Movimentação concluída no Drive!", response);
+                }).catch(function(e) {
+                    console.error("Erro fatal ao mover arquivo na API:", e);
+                    showToast("Erro de permissão no Google Drive.", 'danger');
+                });
+            }
         }
 
         // =======================================================
@@ -579,7 +564,6 @@
             const lastAction = actionHistory.pop(); 
             updateUndoButtonState();
 
-            // Retorna o item para a UI
             totalPhotosInFolder++; 
             document.getElementById('photo-count').innerText = totalPhotosInFolder;
             processedIds.delete(lastAction.fileId); 
@@ -607,10 +591,10 @@
             card.style.transform = 'translateY(0) scale(1)';
             card.style.opacity = '1';
 
-            // Requisição da API para reverter a movimentação
+            // Reverte a ação no Google Drive
             gapi.client.drive.files.update({
                 fileId: lastAction.fileId, addParents: lastAction.origin, removeParents: lastAction.destination, fields: 'id'
-            }).catch(e => console.error("Erro Undo:", e));
+            }).catch(e => console.error("Erro no Undo da API:", e));
         }
 
         async function emptyRejectFolder() {
@@ -635,7 +619,7 @@
                 showToast(deletedCount > 0 ? `${deletedCount} arquivos deletados permanentemente.` : "A pasta já estava vazia.");
 
             } catch (e) {
-                console.error("Erro Lixeira:", e); showToast("Erro ao esvaziar lixeira.");
+                console.error("Erro Lixeira:", e); showToast("Erro ao esvaziar lixeira.", "danger");
             } finally {
                 trashBtn.innerHTML = `🗑️ <span class="btn-text">Esvaziar Excluir</span>`; trashBtn.style.pointerEvents = "auto";
             }
