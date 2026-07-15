@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <title>Editing Pro | Curadoria</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#070707">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Barlow+Condensed:wght@400;500;600;700&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+
+    <script src="https://accounts.google.com/gsi/client" onload="initTokenClient()" async defer></script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" async defer></script>
+    
+    <style>
+        /* ===================================================
+           TOKENS DE DESIGN & VARIÁVEIS
+           =================================================== */
+        :root {
+            --bg:           #070707;
+            --surface:      #0f0f0f;
+            --surface-2:    #161616;
+            --surface-3:    #1e1e1e;
+            --border:       rgba(255, 255, 255, 0.06);
+            --border-mid:   rgba(255, 255, 255, 0.10);
+            --text:         #e8e8e8;
+            --text-dim:     #666;
+            --text-muted:   #888;
+            --reject:       #c94444;
+            --reject-glow:  rgba(201, 68,  68,  0.10);
+            --r-sm:   8px;
+            --r-md:   12px;
+            --r-lg:   18px;
+            --font-serif:  'Playfair Display', Georgia, serif;
+            --font-ui:     'Barlow Condensed', Arial Narrow, sans-serif;
+            --font-mono:   'DM Mono', 'Courier New', monospace;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        /* ===================================================
+           LAYOUT BASE (FLEXBOX COLUMN) - CORREÇÃO DESKTOP
+           =================================================== */
+        body {
+            background: var(--bg); color: var(--text); font-family: var(--font-ui);
+            margin: 0; padding: 0; width: 100vw; height: 100dvh; overflow: hidden;
+            display: flex; flex-direction: column; /* Força empilhamento rígido */
+        }
+
+        /* ===================================================
+           CABEÇALHO (TOPO)
+           =================================================== */
+        header {
+            flex: 0 0 auto; /* Não cresce, ocupa o espaço necessário */
+            padding: 12px 20px; display: flex; flex-direction: column; align-items: center;
+            border-bottom: 1px solid var(--border); z-index: 1001; background: var(--bg);
+        }
+
+        #top-controls {
+            display: none; width: 100%; justify-content: space-between; align-items: center; max-width: 1200px;
+        }
+
+        .folder-tab {
+            background: var(--surface-2); color: var(--text); border: 1px solid var(--border-mid);
+            padding: 8px 16px; border-radius: var(--r-sm); font-family: var(--font-ui);
+            font-size: 0.8rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+            cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
+        }
+        .folder-tab:hover { background: var(--surface-3); }
+        
+        .btn-trash { color: var(--reject); border-color: rgba(201,68,68,0.3); background: transparent; }
+        .btn-trash:hover { background: var(--reject-glow); border-color: var(--reject); }
+
+        #info-bar { display: flex; flex-direction: column; align-items: center; margin-top: 5px; }
+        #photo-count { font-family: var(--font-serif); font-size: 2rem; line-height: 1; color: var(--text); display: none; }
+        #filename-display { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90vw;}
+
+        /* ===================================================
+           TELA CENTRAL (IMAGENS)
+           =================================================== */
+        main {
+            flex: 1 1 0; /* Ocupa todo o espaço restante dinamicamente */
+            position: relative; display: flex; align-items: center; justify-content: center;
+            width: 100%; overflow: hidden; background: #000;
+        }
+
+        #catalog-container {
+            position: absolute; width: 100%; height: 100%; display: none;
+            padding: 15px; /* Espaço de respiro para a imagem */
+        }
+
+        .card { 
+            position: absolute; top: 15px; left: 15px; right: 15px; bottom: 15px;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s ease-out, opacity 0.2s ease-out; 
+        }
+        
+        .card img { 
+            max-width: 100%; max-height: 100%; object-fit: contain; 
+            border-radius: var(--r-md); box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            pointer-events: auto; touch-action: pan-x pan-y pinch-zoom; 
+        }
+
+        .nav-zone { 
+            position: absolute; top: 0; bottom: 0; width: 25%; display: none; 
+            align-items: center; font-size: 2.5rem; color: rgba(255, 255, 255, 0.15); 
+            cursor: pointer; z-index: 50; transition: color 0.2s; user-select: none; 
+        }
+        .nav-zone:hover { color: rgba(255, 255, 255, 0.6); }
+        #nav-left  { left: 0;  justify-content: flex-start; padding-left: 20px; }
+        #nav-right { right: 0; justify-content: flex-end;   padding-right: 20px; }
+
+        #end-screen { position: absolute; display: none; font-family: var(--font-serif); font-size: 1.2rem; color: var(--text-muted); }
+
+        /* ===================================================
+           RODAPÉ (CONTROLES E CATEGORIAS)
+           =================================================== */
+        footer {
+            flex: 0 0 auto; /* Tamanho fixo no fundo */
+            background: var(--surface); border-top: 1px solid var(--border);
+            display: none; flex-direction: column; padding: 15px 20px max(15px, env(safe-area-inset-bottom));
+            z-index: 100;
+        }
+
+        /* Linha superior do rodapé: Ações e Abas */
+        .footer-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px;
+        }
+
+        .utility-btn {
+            background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+            padding: 8px 14px; border-radius: var(--r-sm); font-family: var(--font-ui); font-size: 0.75rem; 
+            text-transform: uppercase; cursor: pointer; transition: 0.2s;
+        }
+        .utility-btn:hover { color: var(--text); border-color: var(--border-mid); }
+        #btn-reject { color: var(--reject); border-color: rgba(201,68,68,0.2); font-weight: bold;}
+        #btn-reject:hover { background: var(--reject-glow); border-color: var(--reject); }
+
+        .category-tabs {
+            display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+            scrollbar-width: none; /* Firefox */
+        }
+        .category-tabs::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+        
+        .cat-tab {
+            background: transparent; color: var(--text-muted); border: none; font-family: var(--font-ui);
+            font-size: 0.85rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+            padding: 5px 10px; cursor: pointer; transition: 0.2s; border-bottom: 2px solid transparent;
+        }
+        .cat-tab.active { color: #fff; border-bottom-color: #fff; }
+
+        /* Grade de Subcategorias */
+        #subcategory-grid {
+            display: grid; gap: 10px; 
+            /* Se adapta ao espaço: no mobile 2 colunas, no desktop até 5 */
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        }
+
+        .action-btn {
+            background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+            padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.1s, border-color 0.2s, background 0.2s;
+            text-align: center; gap: 4px;
+        }
+        .action-btn:active { transform: scale(0.96); }
+        
+        .action-btn .btn-title { font-family: var(--font-ui); font-size: 0.9rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .action-btn .btn-desc { font-family: var(--font-serif); font-size: 0.65rem; font-style: italic; opacity: 0.7; }
+        .action-btn .btn-shortcut { position: absolute; top: 6px; right: 8px; font-family: var(--font-mono); font-size: 0.6rem; opacity: 0.4; }
+
+        /* ===================================================
+           TELA DE LOGIN CENTRALIZADA
+           =================================================== */
+        #login-screen {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--bg); z-index: 9999;
+        }
+        #login-screen h1 { font-family: var(--font-ui); font-size: 1rem; letter-spacing: 8px; color: var(--text-muted); margin-bottom: 40px; }
+        #auth_button {
+            padding: 15px 40px; background: transparent; border: 1px solid var(--border-mid);
+            border-radius: 50px; font-family: var(--font-ui); font-size: 0.8rem; font-weight: 600;
+            letter-spacing: 3px; text-transform: uppercase; color: var(--text); cursor: pointer; transition: 0.2s;
+        }
+        #auth_button:hover { border-color: #fff; background: rgba(255,255,255,0.05); }
+
+        /* Toasts */
+        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.3s; font-size: 0.9rem; text-align: center; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <h1>EDITING PRO</h1>
+        <button id="auth_button" style="display: none;" onclick="handleAuthClick()">Conectar Google Drive</button>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <header>
+        <div id="top-controls">
+            <button class="folder-tab btn-trash" onclick="emptyRejectFolder()" id="tab-trash" title="Esvaziar Lixeira">
+                🗑️ <span class="btn-text">Esvaziar Excluir</span>
+            </button>
+            
+            <div id="info-bar">
+                <div id="photo-count">...</div>
+                <div id="filename-display"></div>
+            </div>
+
+            <button class="folder-tab" onclick="reloadFolder()" title="Atualizar Pasta">
+                🔄 <span class="btn-text">Sincronizar</span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div id="catalog-container">
+            <div id="nav-left" class="nav-zone" onclick="prevPhoto()">&#10094;</div>
+            <div id="nav-right" class="nav-zone" onclick="nextPhoto()">&#10095;</div>
+            <div id="end-screen">A pasta de origem está vazia.</div>
+        </div>
+    </main>
+
+    <footer id="bottom-controls">
+        <div class="footer-header">
+            <button class="utility-btn" id="btn-undo" onclick="undoLastAction()" style="visibility: hidden;">↩ Desfazer</button>
+            
+            <div class="category-tabs" id="category-tabs-container">
+                </div>
+
+            <button class="utility-btn" id="btn-reject" onclick="categorizePhoto(FOLDERS.reject)">🏴 Excluir</button>
+        </div>
+
+        <div id="subcategory-grid">
+            </div>
+    </footer>
+
+    <script type="text/javascript">
+        // =======================================================
+        // ESTRUTURAS DE PASTAS E CATEGORIAS (O MOTOR)
+        // =======================================================
+        
+        // Pasta de Origem e Pasta de Exclusão (Reject)
+        const FOLDERS = {
+            'source': '1l5c1yWkNJWI3NIKp_6Fnxs56nzc44P6F', // Substitua pelo ID real da sua pasta de entrada
+            'reject': '1UL8zEJGWWH2A1NEt-pUhRDQ9sTj9KI6w'  // ID da pasta Excluir
+        };
+
+        // Dicionário de Categorias e Subcategorias (Você pode expandir até os 24 botões aqui)
+        const CATEGORY_MAP = {
+            'PRINCIPAL': [
+                { id: 'boudoir', name: 'BOUDOIR', desc: 'intimidade casual', folder: '1FYx0KBZRLDbhjb4hEbCP2UqnMbT_bKEf', color: '#c2994a', shortcut: '1' },
+                { id: 'explicit', name: 'EXPLICIT', desc: 'nudez explícita', folder: '177jCSC6KvyZZJGpQTCxqcFEK-Wd40qzI', color: '#c94444', shortcut: '2' },
+                { id: 'sensual', name: 'SENSUAL', desc: 'sugestão insinuante', folder: '1Axs1vLJLYyPVwFtm819uH_xlFk2OW1AM', color: '#d16b8a', shortcut: '3' },
+                { id: 'erotic', name: 'EROTIC', desc: 'sexualidade intensa', folder: '19nJoQ8fMergClHc1VEF00e3POBVfwuub', color: '#8a4baf', shortcut: '4' },
+                { id: 'portrait', name: 'PORTRAIT', desc: 'expressão individual', folder: '1R1mrswoVIBK9w8q0Bshm81PDfgaGWxJd', color: '#3d7ec4', shortcut: '5' }
+            ],
+            // Exemplo de como adicionar a segunda categoria no futuro:
+            'SECUNDÁRIA': [
+                { id: 'exemplo1', name: 'EXEMPLO', desc: 'descrição curta', folder: 'COLOQUE_O_ID_AQUI', color: '#555555', shortcut: '6' },
+                { id: 'exemplo2', name: 'OUTRO', desc: 'descrição curta', folder: 'COLOQUE_O_ID_AQUI', color: '#555555', shortcut: '7' }
+            ]
+        };
+
+        let activeCategory = 'PRINCIPAL';
+
+        // =======================================================
+        // GERADOR DA INTERFACE DE CATEGORIAS
+        // =======================================================
+        function buildCategoryUI() {
+            const tabsContainer = document.getElementById('category-tabs-container');
+            const gridContainer = document.getElementById('subcategory-grid');
+            
+            tabsContainer.innerHTML = '';
+            
+            // Criar as Abas
+            Object.keys(CATEGORY_MAP).forEach(catName => {
+                const btn = document.createElement('button');
+                btn.className = `cat-tab ${catName === activeCategory ? 'active' : ''}`;
+                btn.innerText = catName;
+                btn.onclick = () => {
+                    activeCategory = catName;
+                    buildCategoryUI(); // Reconstrói ao trocar de aba
+                };
+                tabsContainer.appendChild(btn);
+            });
+
+            // Criar os botões da aba ativa
+            gridContainer.innerHTML = '';
+            const activeButtons = CATEGORY_MAP[activeCategory];
+            
+            activeButtons.forEach(sub => {
+                const btn = document.createElement('div');
+                btn.className = 'action-btn';
+                btn.style.borderColor = `rgba(${hexToRgb(sub.color)}, 0.3)`;
+                btn.onclick = () => categorizePhoto(sub.folder);
+                
+                // Efeito Hover customizado via JS para manter o CSS limpo
+                btn.onmouseenter = () => { btn.style.background = `rgba(${hexToRgb(sub.color)}, 0.1)`; btn.style.borderColor = sub.color; };
+                btn.onmouseleave = () => { btn.style.background = 'var(--surface-2)'; btn.style.borderColor = `rgba(${hexToRgb(sub.color)}, 0.3)`; };
+
+                btn.innerHTML = `
+                    <span class="btn-title" style="color: ${sub.color};">${sub.name}</span>
+                    <span class="btn-desc">${sub.desc}</span>
+                    ${sub.shortcut ? `<span class="btn-shortcut">[${sub.shortcut}]</span>` : ''}
+                `;
+                gridContainer.appendChild(btn);
+            });
+        }
+
+        // Função auxiliar para cor RGB a partir de HEX
+        function hexToRgb(hex) {
+            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '255,255,255';
+        }
+
+        // =======================================================
+        // CREDENCIAIS GAPI E ESTADO GERAL
+        // =======================================================
+        const CLIENT_ID = '905891014579-fjgqvkgbiucl4c0asn68pbv1p5gm6ofn.apps.googleusercontent.com';
+        const SCOPES = 'https://www.googleapis.com/auth/drive'; 
+        
+        let tokenClient, gapiInited = false, gsisInited = false;
+        let nextPageToken = null, isFetching = false; 
+        const processedIds = new Set(); 
+        let actionHistory = []; 
+        let totalPhotosInFolder = 0; 
+        let currentViewIndex = 0; 
+
+        // =======================================================
+        // INICIALIZAÇÃO
+        // =======================================================
+        function gapiLoaded() { 
+            gapi.load('client', () => {
+                gapi.client.init({ discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] })
+                .then(() => { gapiInited = true; maybeEnableButtons(); })
+                .catch(err => console.error("Erro GAPI", err));
+            });
+        }
+
+        function initTokenClient() {
+            tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: (resp) => {} });
+            gsisInited = true;
+            maybeEnableButtons();
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gsisInited) document.getElementById('auth_button').style.display = 'block'; 
+        }
+
+        function handleAuthClick() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error) return;
+                
+                // Oculta tela de login, revela a interface principal
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('top-controls').style.display = 'flex';
+                document.getElementById('catalog-container').style.display = 'block';
+                document.getElementById('bottom-controls').style.display = 'flex';
+                document.getElementById('photo-count').style.display = 'block'; 
+                
+                buildCategoryUI();
+                loadSourceFolder();
+            };
+            tokenClient.requestAccessToken(); 
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300); 
+            }, 3000);
+        }
+
+        // =======================================================
+        // LÓGICA DE NAVEGAÇÃO E CARTÕES
+        // =======================================================
+        function loadSourceFolder() {
+            const container = document.getElementById('catalog-container');
+            container.querySelectorAll('.card').forEach(c => c.remove());
+            
+            nextPageToken = null; currentViewIndex = 0; processedIds.clear(); actionHistory = []; 
+            updateUndoButtonState();
+            document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('filename-display').innerText = '';
+            
+            fetchTotalCount();
+            listPhotos();
+        }
+
+        function reloadFolder() { loadSourceFolder(); showToast("Pasta sincronizada"); }
+
+        function getVisibleCards() { return Array.from(document.querySelectorAll('.card:not(.animating)')); }
+        function getActiveCard() { const cards = getVisibleCards(); return cards[currentViewIndex] || null; }
+
+        function updateCardsVisibility() {
+            const cards = getVisibleCards();
+            const navLeft = document.getElementById('nav-left');
+            const navRight = document.getElementById('nav-right');
+
+            if(cards.length === 0) {
+                navLeft.style.display = 'none'; navRight.style.display = 'none';
+                return;
+            }
+            
+            if (currentViewIndex >= cards.length) currentViewIndex = Math.max(0, cards.length - 1);
+            if (currentViewIndex < 0) currentViewIndex = 0;
+
+            cards.forEach((card, index) => {
+                if (index === currentViewIndex) {
+                    card.style.visibility = 'visible'; card.style.opacity = '1'; card.style.pointerEvents = 'auto'; 
+                    document.getElementById('filename-display').innerText = card.dataset.fileName;
+                } else {
+                    card.style.visibility = 'hidden'; card.style.opacity = '0'; card.style.pointerEvents = 'none';
+                }
+            });
+
+            navLeft.style.display = currentViewIndex > 0 ? 'flex' : 'none';
+            navRight.style.display = (currentViewIndex < cards.length - 1 || nextPageToken) ? 'flex' : 'none';
+        }
+
+        function prevPhoto() { if (currentViewIndex > 0) { currentViewIndex--; updateCardsVisibility(); } }
+        function nextPhoto() {
+            const cards = getVisibleCards();
+            if (currentViewIndex < cards.length - 1) { currentViewIndex++; updateCardsVisibility(); } 
+            else if (nextPageToken) { listPhotos(); }
+        }
+
+        // Swipe nativo
+        let touchstartX = 0, touchendX = 0;
+        document.getElementById('catalog-container').addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
+        document.getElementById('catalog-container').addEventListener('touchend', e => {
+            touchendX = e.changedTouches[0].screenX;
+            if (touchendX < touchstartX - 50) nextPhoto(); 
+            if (touchendX > touchstartX + 50) prevPhoto();
+        }, {passive: true});
+
+        // Atalhos de teclado (Mapeando os atalhos configurados no CATEGORY_MAP)
+        document.addEventListener('keydown', (event) => {
+            if (event.repeat) return; 
+            
+            if (event.key === 'ArrowLeft') { prevPhoto(); return; }
+            if (event.key === 'ArrowRight') { nextPhoto(); return; }
+            if (event.key.toLowerCase() === 'z') { undoLastAction(); return; } // Z para Desfazer
+            if (event.key.toLowerCase() === 'x') { categorizePhoto(FOLDERS.reject); return; } // X para Excluir
+            
+            // Busca se a tecla pressionada corresponde ao atalho de alguma subcategoria da aba ATUAL
+            const activeButtons = CATEGORY_MAP[activeCategory];
+            const matchedSub = activeButtons.find(sub => sub.shortcut === event.key);
+            if (matchedSub) {
+                categorizePhoto(matchedSub.folder);
+            }
+        });
+
+        // =======================================================
+        // FETCH DO GOOGLE DRIVE
+        // =======================================================
+        async function fetchTotalCount() {
+            let count = 0, pageToken = null;
+            const query = `'${FOLDERS.source}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed = false`;
+            document.getElementById('photo-count').innerText = "...";
+            
+            try {
+                do {
+                    const response = await gapi.client.drive.files.list({ q: query, pageSize: 1000, fields: 'nextPageToken, files(id)', pageToken: pageToken });
+                    if (response.result.files) count += response.result.files.length;
+                    pageToken = response.result.nextPageToken;
+                } while (pageToken);
+                
+                totalPhotosInFolder = count;
+                document.getElementById('photo-count').innerText = totalPhotosInFolder;
+            } catch (e) { document.getElementById('photo-count').innerText = "?"; }
+        }
+
+        async function listPhotos() {
+            if (isFetching) return;
+            isFetching = true;
+            document.getElementById('end-screen').style.display = 'none';
+
+            const query = `'${FOLDERS.source}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed = false`;
+            const req = { 'pageSize': 50, 'fields': 'nextPageToken, files(id, name, thumbnailLink, mimeType)', 'q': query, 'orderBy': 'name' };
+            if (nextPageToken) req.pageToken = nextPageToken;
+            
+            try {
+                const response = await gapi.client.drive.files.list(req);
+                nextPageToken = response.result.nextPageToken || null;
+                addCardsToStack(response.result.files);
+            } catch (e) { console.error("Fetch Error:", e); } 
+            finally { isFetching = false; }
+        }
+
+        function addCardsToStack(files) {
+            const container = document.getElementById('catalog-container');
+            if (!files || files.length === 0) { 
+                if (getVisibleCards().length === 0) document.getElementById('end-screen').style.display = 'flex';
+                return; 
+            }
+
+            files.forEach((file) => {
+                if (processedIds.has(file.id)) return;
+                processedIds.add(file.id);
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.fileId = file.id; card.dataset.fileName = file.name || 'Desconhecido'; card.dataset.mimeType = file.mimeType || ''; 
+                
+                if (file.mimeType && file.mimeType.startsWith('video/')) {
+                    card.innerHTML = `<iframe src="https://drive.google.com/file/d/${file.id}/preview" width="100%" height="100%" frameborder="0"></iframe>`;
+                } else {
+                    const imgUrl = file.thumbnailLink ? file.thumbnailLink.replace('=s220', '=s800') : '';
+                    card.innerHTML = `<img src="${imgUrl}">`;
+                }
+                container.appendChild(card);
+            });
+
+            updateCardsVisibility();
+            if (getVisibleCards().length === 0 && nextPageToken) listPhotos();
+        }
+
+        // =======================================================
+        // AÇÃO: MOVER ARQUIVO PARA UMA PASTA
+        // =======================================================
+        function categorizePhoto(targetFolderId) {
+            const activeCard = getActiveCard();
+            if (!activeCard) return;
+            
+            const fileId = activeCard.dataset.fileId;
+            
+            // Animação visual de saída
+            activeCard.classList.add('animating'); 
+            activeCard.style.transform = targetFolderId === FOLDERS.reject ? `translate(-500px, 100px) rotate(-30deg)` : `translate(500px, -100px) scale(0.8)`;
+            activeCard.style.opacity = '0';
+            activeCard.style.pointerEvents = 'none';
+            
+            // Guardar no histórico para Undo
+            const imgEl = activeCard.querySelector('img');
+            actionHistory.push({ 
+                fileId: fileId, destination: targetFolderId, origin: FOLDERS.source, 
+                imgUrl: imgEl ? imgEl.src : '', fileName: activeCard.dataset.fileName, mimeType: activeCard.dataset.mimeType 
+            });
+            updateUndoButtonState();
+
+            // Atualiza contadores e UI
+            updateCardsVisibility(); 
+            if (totalPhotosInFolder > 0) totalPhotosInFolder--; 
+            document.getElementById('photo-count').innerText = totalPhotosInFolder;
+
+            setTimeout(() => {
+                activeCard.remove();
+                if (getVisibleCards().length <= 10 && nextPageToken) listPhotos();
+                if (getVisibleCards().length === 0 && !nextPageToken) document.getElementById('end-screen').style.display = 'flex';
+            }, 200);
+
+            // Requisição da API Real
+            gapi.client.drive.files.update({
+                fileId: fileId, addParents: targetFolderId, removeParents: FOLDERS.source, fields: 'id' 
+            }).catch(e => console.error("Erro ao mover:", e));
+        }
+
+        // =======================================================
+        // UNDO (DESFAZER) E ESVAZIAR LIXEIRA
+        // =======================================================
+        function updateUndoButtonState() {
+            document.getElementById('btn-undo').style.visibility = (actionHistory.length > 0) ? 'visible' : 'hidden'; 
+        }
+
+        async function undoLastAction() {
+            if (actionHistory.length === 0) return;
+            const lastAction = actionHistory.pop(); 
+            updateUndoButtonState();
+
+            // Retorna o item para a UI
+            totalPhotosInFolder++; 
+            document.getElementById('photo-count').innerText = totalPhotosInFolder;
+            processedIds.delete(lastAction.fileId); 
+            document.getElementById('end-screen').style.display = 'none';
+
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.fileId = lastAction.fileId; card.dataset.fileName = lastAction.fileName; card.dataset.mimeType = lastAction.mimeType;
+            if (lastAction.mimeType && lastAction.mimeType.startsWith('video/')) {
+                card.innerHTML = `<iframe src="https://drive.google.com/file/d/${lastAction.fileId}/preview" width="100%" height="100%" frameborder="0"></iframe>`;
+            } else {
+                card.innerHTML = `<img src="${lastAction.imgUrl}">`;
+            }
+            
+            card.style.transform = 'translateY(-50px) scale(0.9)'; 
+            card.style.opacity = '0';
+            
+            const container = document.getElementById('catalog-container');
+            const activeCard = getActiveCard();
+            if (activeCard) container.insertBefore(card, activeCard);
+            else container.appendChild(card);
+
+            updateCardsVisibility();
+            void card.offsetWidth; 
+            card.style.transform = 'translateY(0) scale(1)';
+            card.style.opacity = '1';
+
+            // Requisição da API para reverter a movimentação
+            gapi.client.drive.files.update({
+                fileId: lastAction.fileId, addParents: lastAction.origin, removeParents: lastAction.destination, fields: 'id'
+            }).catch(e => console.error("Erro Undo:", e));
+        }
+
+        async function emptyRejectFolder() {
+            const trashBtn = document.getElementById('tab-trash');
+            let pageToken = null, deletedCount = 0;
+            const query = `'${FOLDERS.reject}' in parents and trashed = false`;
+            
+            try {
+                trashBtn.innerHTML = "⏳ Esvaziando..."; trashBtn.style.pointerEvents = "none";
+
+                do {
+                    const response = await gapi.client.drive.files.list({ q: query, fields: 'nextPageToken, files(id)', pageToken: pageToken });
+                    const files = response.result.files;
+                    if (files && files.length > 0) {
+                        deletedCount += files.length; 
+                        await Promise.all(files.map(file => gapi.client.drive.files.update({ fileId: file.id, resource: { trashed: true } }))); 
+                    }
+                    pageToken = response.result.nextPageToken;
+                } while (pageToken);
+
+                await gapi.client.drive.files.emptyTrash({});
+                showToast(deletedCount > 0 ? `${deletedCount} arquivos deletados permanentemente.` : "A pasta já estava vazia.");
+
+            } catch (e) {
+                console.error("Erro Lixeira:", e); showToast("Erro ao esvaziar lixeira.");
+            } finally {
+                trashBtn.innerHTML = `🗑️ <span class="btn-text">Esvaziar Excluir</span>`; trashBtn.style.pointerEvents = "auto";
+            }
+        }
+    </script>
+</body>
+</html>
